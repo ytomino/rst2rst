@@ -202,13 +202,19 @@ static void write_decoded_text(
 	size_t enc_len)
 {
 	char out_buf[PAGE];
+	bool done = enc_len == 0;
 	
-	while(enc_len > 0){
+	while(!done){
 		char * out = out_buf;
 		size_t out_left = PAGE;
 		bool is_error;
 		
-		is_error = iconv(cd, &enc, &enc_len, &out, &out_left) == (size_t)-1;
+		if(enc_len == 0){
+			is_error = iconv(cd, NULL, NULL, &out, &out_left) == (size_t)-1;
+			done = true;
+		}else{
+			is_error = iconv(cd, &enc, &enc_len, &out, &out_left) == (size_t)-1;
+		}
 		for(char * p = out_buf; p < out; ++p){
 			if((unsigned char)*p < '\x20'){
 				write_encoded_char(state, *p);
