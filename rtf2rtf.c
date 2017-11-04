@@ -138,7 +138,7 @@ static bool take_char(
 
 /* output */
 
-static char const tocode[] = "UTF-8";
+static char const ASCII[] = "ASCII";
 
 enum state { FIRST, LPAREN, RPAREN, TAG, PARAM, TEXT };
 
@@ -254,12 +254,19 @@ static void write_lf(
 
 int main(int argc, __attribute__((unused)) char ** argv)
 {
-	if(argc > 1){
-		char const *arg = argv[1];
+	char const *tocode = ASCII;
+	iconv_t iconv_cd;
+	
+	for(int i = 1; i < argc; ++ i){
+		char const *arg = argv[i];
 		
 		if(arg[0] == '-'){
-			if(arg[1] != '\0'){
+			if(strcmp(arg, "-t") == 0){
+				++ i;
+				tocode = argv[i];
+			}else if(arg[1] != '\0'){
 				fprintf(stderr, "rtf2rtf: convert rtf to human friendly rtf\n");
+				fprintf(stderr, "usage: rtf2rtf [-t tocode] [file]\n");
 				return 1;
 			}
 			/* if argv[1] is "-", read from stdin */
@@ -270,6 +277,12 @@ int main(int argc, __attribute__((unused)) char ** argv)
 			}
 		}
 	}
+	/* -t */
+	iconv_cd = iconv_open(tocode, ASCII);
+	if(iconv_cd == (iconv_t)-1){
+		fprintf(stderr, "rtf2rtf: -t %s: Conversion unsupported\n", tocode);
+		return 1;
+	}
 	
 	char src[PAGE * 2];
 	size_t src_len = 0;
@@ -277,7 +290,6 @@ int main(int argc, __attribute__((unused)) char ** argv)
 	bool body = false;
 	enum state state = FIRST;
 	bool text = false;
-	iconv_t iconv_cd = NULL;
 	char buf[PAGE];
 	size_t buf_len;
 	
@@ -287,9 +299,6 @@ int main(int argc, __attribute__((unused)) char ** argv)
 			char enc[PAGE];
 			size_t enc_len = 0;
 			
-			if(iconv_cd == NULL){
-				iconv_cd = iconv_open(tocode, "ASCII");
-			}
 			do{
 				long c;
 				char * endptr;
@@ -326,28 +335,30 @@ int main(int argc, __attribute__((unused)) char ** argv)
 			}else if(buf_len > 8 && memcmp(buf, "\\ansicpg", 8) == 0){
 				/* ansicpgDD */
 				int new_cp = 0;
+				bool is_error = false;
 				
 				for(size_t i = 8; i < buf_len; ++ i){
 					if(is_decimal(buf[i])){
 						new_cp = new_cp * 10 + (buf[i] - '0');
 					}else{
-						new_cp = -1;
+						is_error = true;
 						break;
 					}
 				}
-				if(new_cp >= 0){
+				if(!is_error){
 					char cp_name[PAGE];
+					iconv_t old_iconv_cd = iconv_cd;
 					
 					sprintf(cp_name, "cp%d", new_cp);
-					if(iconv_cd != NULL){
-						iconv_close(iconv_cd);
-					}
 					iconv_cd = iconv_open(tocode, cp_name);
 					if(iconv_cd == (iconv_t)-1){
-						iconv_cd = NULL;
+						iconv_cd = old_iconv_cd;
+						is_error = true;
+					}else{
+						iconv_close(old_iconv_cd);
 					}
 				}
-				if(iconv_cd == NULL){
+				if(is_error){
 					fprintf(stderr, "invalid tag: %.*s\n", (int)buf_len, buf);
 				}
 				write_tag(&state, buf, buf_len);
