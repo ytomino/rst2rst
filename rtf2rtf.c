@@ -225,7 +225,7 @@ static void write_decoded_text(
 				fwrite(p, 1, 1, stdout);
 			}
 		}
-		if(is_error){
+		if(is_error && enc_len > 0){
 			write_encoded_char(state, text, *enc);
 			++ enc;
 			-- enc_len;
