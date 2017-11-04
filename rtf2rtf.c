@@ -185,13 +185,15 @@ static void do_write_text(
 
 static void write_encoded_char(
 	enum state * restrict state,
+	bool * restrict text,
 	char c)
 {
 	char tag[PAGE];
 	size_t tag_len;
 	
+	do_write_text(state, text);
 	tag_len = sprintf(tag, "\\\'%02x", (unsigned char)c);
-	write_tag(state, tag, tag_len);
+	fwrite(tag, 1, tag_len, stdout);
 }
 
 static void write_decoded_text(
@@ -217,14 +219,14 @@ static void write_decoded_text(
 		}
 		for(char * p = out_buf; p < out; ++p){
 			if((unsigned char)*p < '\x20'){
-				write_encoded_char(state, *p);
+				write_encoded_char(state, text, *p);
 			}else{
 				do_write_text(state, text);
 				fwrite(p, 1, 1, stdout);
 			}
 		}
 		if(is_error){
-			write_encoded_char(state, *enc);
+			write_encoded_char(state, text, *enc);
 			++ enc;
 			-- enc_len;
 		}
