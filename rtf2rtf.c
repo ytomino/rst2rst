@@ -257,7 +257,7 @@ static void write_lf(
 int main(int argc, __attribute__((unused)) char ** argv)
 {
 	char const *tocode = ASCII;
-	iconv_t iconv_cd;
+	iconv_t from_ascii_cd;
 	
 	for(int i = 1; i < argc; ++ i){
 		char const *arg = argv[i];
@@ -280,12 +280,13 @@ int main(int argc, __attribute__((unused)) char ** argv)
 		}
 	}
 	/* -t */
-	iconv_cd = iconv_open(tocode, ASCII);
-	if(iconv_cd == (iconv_t)-1){
+	from_ascii_cd = iconv_open(tocode, ASCII);
+	if(from_ascii_cd == (iconv_t)-1){
 		fprintf(stderr, "rtf2rtf: -t %s: Conversion unsupported\n", tocode);
 		return 1;
 	}
 	
+	iconv_t iconv_cd = from_ascii_cd;
 	char src[PAGE * 2];
 	size_t src_len = 0;
 	size_t src_i = 0;
@@ -356,7 +357,7 @@ int main(int argc, __attribute__((unused)) char ** argv)
 					if(iconv_cd == (iconv_t)-1){
 						iconv_cd = old_iconv_cd;
 						is_error = true;
-					}else{
+					}else if(old_iconv_cd != from_ascii_cd){
 						iconv_close(old_iconv_cd);
 					}
 				}
@@ -409,6 +410,8 @@ int main(int argc, __attribute__((unused)) char ** argv)
 			}
 			fputc(src[src_i], stdout);
 			state = PARAM;
+		}else if((unsigned char)src[src_i] >= 0x80){
+			write_decoded_text(&state, &text, from_ascii_cd, src + src_i, 1);
 		}else{
 			write_text(&state, &text, src + src_i, 1);
 		}
