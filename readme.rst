@@ -18,7 +18,7 @@ The source of this RTF is difficult to read.
 .. image:: https://raw.github.com/ytomino/rtf2rtf/master/doc-after.png
 
 Note, the correct encoding of RTF is ASCII.
-UTF-8 (by the option ``-t UTF-8`` in this screen-short) is illegal,
+UTF-8 (by the option ``-t UTF-8`` in this screen-shot) is illegal,
 and should be used for reading only.
 
 Settings for git diff
